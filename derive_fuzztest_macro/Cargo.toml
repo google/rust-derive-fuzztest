@@ -1,8 +1,11 @@
 [package]
 name = "derive_fuzztest_macro"
+description = "Macro implementation for derive_fuzztest"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+license.workspace = true
+categories.workspace = true
 
 [dependencies]
 quote.workspace = true

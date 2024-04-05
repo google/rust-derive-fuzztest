@@ -13,7 +13,7 @@ exhaustively and run continuously.
 
 ## Example
 
-```no_run
+```rust
 #![cfg_attr(fuzzing, no_main)]
 
 #[derive_fuzztest::fuzztest]

@@ -272,7 +272,8 @@ dependencies = [
 [[package]]
 name = "proptest-arbitrary-interop"
 version = "0.1.0"
-source = "git+https://github.com/brson/proptest-arbitrary-interop.git?branch=incorrect-format#9ae407e9805feb109b3d49cc737166bda7e698c3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1981e49bd2432249da8b0e11e5557099a8e74690d6b94e721f7dc0bb7f3555f"
 dependencies = [
  "arbitrary",
  "proptest",

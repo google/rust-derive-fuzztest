@@ -6,6 +6,8 @@ edition.workspace = true
 publish.workspace = true
 license.workspace = true
 categories.workspace = true
+repository.workspace = true
+readme = "../README.md"
 
 [dependencies]
 arbitrary.workspace = true

@@ -3,6 +3,8 @@ derive_fuzztest
 
 _This is not an officially supported Google product._
 
+[![Crates.io](https://img.shields.io/crates/v/derive_fuzztest)](https://crates.io/crates/derive_fuzztest) [![Docs](https://docs.rs/derive_fuzztest/badge.svg)](https://docs.rs/derive_fuzztest)
+
 ## Description
 
 Proc macros that generates both a fuzz target for use with `cargo fuzz`, and a property test

@@ -167,7 +167,10 @@ mod quickcheck {
                 }
 
                 ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
-                    .tests(::std::env::var("QUICKCHECK_TESTS").ok().and_then(|val| val.parse().ok()).unwrap_or(10000))
+                    .tests(
+                        ::std::env::var("QUICKCHECK_TESTS").ok()
+                            .and_then(|val| val.parse().ok()).unwrap_or(10000)
+                    )
                     .quickcheck(inner as fn(_) -> TestResult);
             }
         }
@@ -381,7 +384,10 @@ mod tests {
                         }
                     }
                     ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
-                        .tests(1024)
+                        .tests(
+                            ::std::env::var("QUICKCHECK_TESTS").ok()
+                                .and_then(|val| val.parse().ok()).unwrap_or(10000)
+                        )
                         .quickcheck(inner as fn(_) -> TestResult);
                 }
             }

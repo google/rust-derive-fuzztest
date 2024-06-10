@@ -106,10 +106,12 @@ fn proptest_impl(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStr
     let fn_def = FunctionDefinition::parse(func)?;
     let original_fn = &fn_def.func;
     let proptest_target = proptest::derive_proptest(&fn_def);
+    let quickcheck_target = quickcheck::derive_quickcheck(&fn_def);
 
     Ok(quote! {
         #[allow(unused)]
         #original_fn
+        #quickcheck_target
         #proptest_target
     })
 }
@@ -443,6 +445,31 @@ mod tests {
                 #[allow(unused)]
                 fn foobar(input: &[u8]) {
                     panic!("I am just a test")
+                }
+
+                #[automatically_derived]
+                #[test]
+                fn quickcheck_foobar() {
+                    use ::derive_fuzztest::reexport::quickcheck::TestResult;
+                    use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
+
+                    fn inner(args: (ArbitraryAdapter<&[u8]>)) -> TestResult {
+                        let (ArbitraryAdapter(::core::result::Result::Ok(input))) = args else {
+                            return TestResult::discard()
+                        };
+                        match ::std::panic::catch_unwind(move || {
+                            foobar(input);
+                        }) {
+                            ::core::result::Result::Ok(()) => TestResult::passed(),
+                            ::core::result::Result::Err(e) => TestResult::error(::std::format!("{e:?}")),
+                        }
+                    }
+                    ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
+                        .tests(
+                            ::std::env::var("QUICKCHECK_TESTS").ok()
+                                .and_then(|val| val.parse().ok()).unwrap_or(10000)
+                        )
+                        .quickcheck(inner as fn(_) -> TestResult);
                 }
 
                 #[automatically_derived]

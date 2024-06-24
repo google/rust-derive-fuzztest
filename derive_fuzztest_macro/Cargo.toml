@@ -14,7 +14,6 @@ proc-macro2.workspace = true
 syn = { workspace = true, features = ["extra-traits"]}
 
 [dev-dependencies]
-derive_fuzztest.workspace = true
 pretty_assertions.workspace = true
 prettyplease.workspace = true
 

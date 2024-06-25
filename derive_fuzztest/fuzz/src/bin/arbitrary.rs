@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![cfg_attr(fuzzing, no_main)]
+#![no_std]
 
 use arbitrary::{Arbitrary, Unstructured};
 use derive_fuzztest::fuzztest;

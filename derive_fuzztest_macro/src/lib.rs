@@ -120,6 +120,7 @@ fn derive_fuzz_target(fn_def: &FunctionDefinition) -> proc_macro2::TokenStream {
     let FunctionDefinition { func, args, types } = fn_def;
     let func_ident = &func.sig.ident;
     quote! {
+        extern crate std;
         #[automatically_derived]
         #[cfg(fuzzing)]
         ::libfuzzer_sys::fuzz_target!(|args: ( #(#types),* )| {
@@ -129,7 +130,8 @@ fn derive_fuzz_target(fn_def: &FunctionDefinition) -> proc_macro2::TokenStream {
 
         #[cfg(not(any(fuzzing, rust_analyzer)))]
         fn main() {
-            ::std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
+            extern crate std;
+            std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
         }
     }
 }
@@ -157,20 +159,21 @@ mod quickcheck {
             fn #test_name() {
                 use ::derive_fuzztest::reexport::quickcheck::TestResult;
                 use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
+                extern crate std;
 
                 fn inner(args: (#(#adapted_types),*)) -> TestResult {
                     let (#(#arg_pattern),*) = args else { return TestResult::discard() };
-                    match ::std::panic::catch_unwind(move || {
+                    match std::panic::catch_unwind(move || {
                         #func_ident ( #(#args),* );
                     }) {
                         ::core::result::Result::Ok(()) => TestResult::passed(),
-                        ::core::result::Result::Err(e) => TestResult::error(::std::format!("{e:?}")),
+                        ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
                     }
                 }
 
                 ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
                     .tests(
-                        ::std::env::var("QUICKCHECK_TESTS").ok()
+                        std::env::var("QUICKCHECK_TESTS").ok()
                             .and_then(|val| val.parse().ok()).unwrap_or(10000)
                     )
                     .quickcheck(inner as fn(_) -> TestResult);
@@ -336,6 +339,7 @@ mod tests {
                     panic!("I am just a test")
                 }
 
+                extern crate std;
                 #[automatically_derived]
                 #[cfg(fuzzing)]
                 ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| {
@@ -345,7 +349,8 @@ mod tests {
 
                 #[cfg(not(any(fuzzing, rust_analyzer)))]
                 fn main() {
-                    ::std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
+                    extern crate std;
+                    std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
                 }
 
                 #[automatically_derived]
@@ -373,21 +378,22 @@ mod tests {
                 fn quickcheck_foobar() {
                     use ::derive_fuzztest::reexport::quickcheck::TestResult;
                     use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
+                    extern crate std;
 
                     fn inner(args: (ArbitraryAdapter<&[u8]>)) -> TestResult {
                         let (ArbitraryAdapter(::core::result::Result::Ok(input))) = args else {
                             return TestResult::discard()
                         };
-                        match ::std::panic::catch_unwind(move || {
+                        match std::panic::catch_unwind(move || {
                             foobar(input);
                         }) {
                             ::core::result::Result::Ok(()) => TestResult::passed(),
-                            ::core::result::Result::Err(e) => TestResult::error(::std::format!("{e:?}")),
+                            ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
                         }
                     }
                     ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
                         .tests(
-                            ::std::env::var("QUICKCHECK_TESTS").ok()
+                            std::env::var("QUICKCHECK_TESTS").ok()
                                 .and_then(|val| val.parse().ok()).unwrap_or(10000)
                         )
                         .quickcheck(inner as fn(_) -> TestResult);
@@ -414,6 +420,7 @@ mod tests {
                     panic!("I am just a test")
                 }
 
+                extern crate std;
                 #[automatically_derived]
                 #[cfg(fuzzing)]
                 ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| {
@@ -423,7 +430,8 @@ mod tests {
 
                 #[cfg(not(any(fuzzing, rust_analyzer)))]
                 fn main() {
-                    ::std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
+                    extern crate std;
+                    std::unreachable!("Run this target with `cargo fuzz` or `cargo test` instead");
                 }
             }
         );
@@ -452,21 +460,22 @@ mod tests {
                 fn quickcheck_foobar() {
                     use ::derive_fuzztest::reexport::quickcheck::TestResult;
                     use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
+                    extern crate std;
 
                     fn inner(args: (ArbitraryAdapter<&[u8]>)) -> TestResult {
                         let (ArbitraryAdapter(::core::result::Result::Ok(input))) = args else {
                             return TestResult::discard()
                         };
-                        match ::std::panic::catch_unwind(move || {
+                        match std::panic::catch_unwind(move || {
                             foobar(input);
                         }) {
                             ::core::result::Result::Ok(()) => TestResult::passed(),
-                            ::core::result::Result::Err(e) => TestResult::error(::std::format!("{e:?}")),
+                            ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
                         }
                     }
                     ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
                         .tests(
-                            ::std::env::var("QUICKCHECK_TESTS").ok()
+                            std::env::var("QUICKCHECK_TESTS").ok()
                                 .and_then(|val| val.parse().ok()).unwrap_or(10000)
                         )
                         .quickcheck(inner as fn(_) -> TestResult);

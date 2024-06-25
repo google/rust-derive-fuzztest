@@ -16,3 +16,6 @@ quickcheck.workspace = true
 
 [target.'cfg(fuzzing)'.dependencies]
 libfuzzer-sys.workspace = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

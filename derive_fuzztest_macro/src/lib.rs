@@ -16,9 +16,9 @@
 //! documentation there for usage information.
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{parse::Nothing, spanned::Spanned, ItemFn, Pat, PatType, Type};
+use syn::{parse::Nothing, spanned::Spanned, Ident, ItemFn, Pat, PatIdent, PatType, Type};
 
 /// Define a fuzz test.
 ///
@@ -253,7 +253,7 @@ mod proptest {
 /// crate.
 struct FunctionDefinition {
     func: ItemFn,
-    args: Vec<Pat>,
+    args: Vec<Ident>,
     types: Vec<Type>,
 }
 
@@ -278,7 +278,13 @@ impl FunctionDefinition {
             })
             .try_fold((Vec::new(), Vec::new()), |(mut args, mut types), result| {
                 result.map(|(arg, type_)| {
-                    args.push(arg);
+                    match arg {
+                        Pat::Ident(PatIdent { ident, .. }) => args.push(ident),
+                        _ => args.push(Ident::new(
+                            &format!("fuzztest__arg{}", args.len()),
+                            Span::call_site(),
+                        )),
+                    };
                     types.push(type_);
                     (args, types)
                 })

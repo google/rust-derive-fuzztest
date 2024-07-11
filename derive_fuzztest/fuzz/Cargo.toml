@@ -10,7 +10,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-arbitrary.workspace = true
+arbitrary = { workspace = true, features = ["derive"] }
 derive_fuzztest.workspace = true
 quickcheck.workspace = true
 

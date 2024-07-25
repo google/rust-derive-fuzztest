@@ -11,7 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
-derive_fuzztest.workspace = true
+derive_fuzztest = { workspace = true, features = ["all"]}
 quickcheck.workspace = true
 
 [target.'cfg(fuzzing)'.dependencies]

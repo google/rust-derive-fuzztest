@@ -119,13 +119,30 @@ fn proptest_impl(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStr
 fn derive_fuzz_target(fn_def: &FunctionDefinition) -> proc_macro2::TokenStream {
     let FunctionDefinition { func, args, types } = fn_def;
     let func_ident = &func.sig.ident;
+    let invoke_test_func = match &func.sig.output {
+        syn::ReturnType::Default => {
+            quote! {
+                #func_ident ( #(#args),* );
+                ::libfuzzer_sys::Corpus::Keep
+            }
+        }
+        syn::ReturnType::Type(_, _) => {
+            quote! {
+                match (#func_ident ( #(#args),* )) {
+                    ::derive_fuzztest::TestResult::Passed => ::libfuzzer_sys::Corpus::Keep,
+                    ::derive_fuzztest::TestResult::Discard => ::libfuzzer_sys::Corpus::Reject,
+                }
+            }
+        }
+    };
+
     quote! {
         extern crate std;
         #[automatically_derived]
         #[cfg(fuzzing)]
-        ::libfuzzer_sys::fuzz_target!(|args: ( #(#types),* )| {
+        ::libfuzzer_sys::fuzz_target!(|args: ( #(#types),* )| -> ::libfuzzer_sys::Corpus {
             let ( #(#args),* ) = args;  // https://github.com/rust-fuzz/libfuzzer/issues/77
-            #func_ident ( #(#args),* )
+            #invoke_test_func
         });
 
         #[cfg(not(any(fuzzing, rust_analyzer)))]
@@ -153,21 +170,38 @@ mod quickcheck {
             .map(|arg| quote! { ArbitraryAdapter(::core::result::Result::Ok(#arg)) })
             .collect();
         let test_name = quote::format_ident!("quickcheck_{func_ident}");
+        let invoke_test_func = match &func.sig.output {
+            syn::ReturnType::Default => {
+                quote! {
+                    #func_ident ( #(#args),* );
+                    QcTestResult::passed()
+                }
+            }
+            syn::ReturnType::Type(_, _) => {
+                // The function returns a TestResult
+                quote! {
+                    match #func_ident ( #(#args),* ) {
+                        ::derive_fuzztest::TestResult::Passed => QcTestResult::passed(),
+                        ::derive_fuzztest::TestResult::Discard => QcTestResult::discard(),
+                    }
+                }
+            }
+        };
         quote! {
             #[automatically_derived]
             #[test]
             fn #test_name() {
-                use ::derive_fuzztest::reexport::quickcheck::TestResult;
+                use ::derive_fuzztest::reexport::quickcheck::TestResult as QcTestResult;
                 use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
                 extern crate std;
 
-                fn inner(args: (#(#adapted_types),*)) -> TestResult {
-                    let (#(#arg_pattern),*) = args else { return TestResult::discard() };
+                fn inner(args: (#(#adapted_types),*)) -> QcTestResult {
+                    let (#(#arg_pattern),*) = args else { return QcTestResult::discard() };
                     match std::panic::catch_unwind(move || {
-                        #func_ident ( #(#args),* );
+                        #invoke_test_func
                     }) {
-                        ::core::result::Result::Ok(()) => TestResult::passed(),
-                        ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
+                        ::core::result::Result::Ok(test_result) => test_result,
+                        ::core::result::Result::Err(e) => QcTestResult::error(std::format!("{e:?}")),
                     }
                 }
 
@@ -176,7 +210,7 @@ mod quickcheck {
                         std::env::var("QUICKCHECK_TESTS").ok()
                             .and_then(|val| val.parse().ok()).unwrap_or(10000)
                     )
-                    .quickcheck(inner as fn(_) -> TestResult);
+                    .quickcheck(inner as fn(_) -> QcTestResult);
             }
         }
     }
@@ -214,25 +248,51 @@ mod proptest {
             output,
         } = &func.sig;
         let proptest_ident = Ident::new(&format!("proptest_{ident}"), ident.span());
+        let invoke_test_func = match output {
+            syn::ReturnType::Default => {
+                quote! {
+                    #ident ( #(#args),* );
+                    proptest::test_runner::TestCaseResult::Ok(())
+                }
+            }
+            syn::ReturnType::Type(_, _) => {
+                quote! {
+                    use ::derive_fuzztest::TestResult;
+                    match (#ident ( #(#args),* )) {
+                        TestResult::Passed => proptest::test_runner::TestCaseResult::Ok(()),
+                        TestResult::Discard => proptest::test_runner::TestCaseResult::Err(proptest::test_runner::TestCaseError::reject("Discarded by test case")),
+                    }
+                }
+            }
+        };
         quote! {
             #[automatically_derived]
             #[cfg(test)]
             mod #proptest_ident {
+                extern crate std;
                 use super::*;
                 use ::derive_fuzztest::reexport::proptest;
                 use ::derive_fuzztest::reexport::proptest_arbitrary_interop::arb;
 
-                proptest::proptest! {
-                    #![proptest_config(proptest::prelude::ProptestConfig {
+                #[test]
+                #(#func_attrs)*
+                #constness #asyncness #unsafety #abi #fn_token #proptest_ident #generics () {
+                    let config = proptest::prelude::ProptestConfig {
                         cases: 1024,
-                        failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::WithSource("regression"))),
+                        max_global_rejects: 65536,
+                        failure_persistence: Some(std::boxed::Box::new(proptest::test_runner::FileFailurePersistence::WithSource("regression"))),
+                        test_name: Some(concat!(std::module_path!(), "::", stringify!(#proptest_ident))),
+                        source_file: Some(file!()),
                         ..Default::default()
-                    })]
-                    #[test]
-                    #(#func_attrs)*
-                    #constness #asyncness #unsafety #abi #fn_token #proptest_ident #generics ( args in arb::<(#(#types),*)>() ) #output {
+                    };
+                    let config = proptest::test_runner::contextualize_config(config);
+                    let mut runner = proptest::test_runner::TestRunner::new(config);
+                    match runner.run(&arb::<(#(#types),*)>(), |args| {
                         let (#(#args),*) = args;
-                        #ident ( #(#args),* );
+                        #invoke_test_func
+                    }) {
+                        Ok(()) => (),
+                        Err(e) => panic!("{e:?}\n{runner:?}")
                     }
                 }
             }
@@ -316,14 +376,14 @@ mod tests {
         ($actual:expr, $expected:expr) => {
             let actual = syn::parse2::<syn::File>($actual).unwrap();
             let expected: syn::File = $expected;
-            assert!(
-                actual == expected,
-                "{}",
-                pretty_assertions::StrComparison::new(
-                    &prettyplease::unparse(&expected),
-                    &prettyplease::unparse(&actual),
-                )
-            )
+            // The token trees may not be completely equal with things like trailing commas and
+            // extra braces around blocks. For the purposes of these tests, just trust that the
+            // transformations `prettyplease` does won't affect functionality. We'll catch the rest
+            // of the errors in the integration tests in `derive_fuzztest/fuzz`
+            pretty_assertions::assert_str_eq!(
+                prettyplease::unparse(&actual),
+                prettyplease::unparse(&expected)
+            );
         };
     }
 
@@ -348,9 +408,10 @@ mod tests {
                 extern crate std;
                 #[automatically_derived]
                 #[cfg(fuzzing)]
-                ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| {
+                ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| -> ::libfuzzer_sys::Corpus {
                     let (input) = args;
-                    foobar(input)
+                    foobar(input);
+                    ::libfuzzer_sys::Corpus::Keep
                 });
 
                 #[cfg(not(any(fuzzing, rust_analyzer)))]
@@ -362,19 +423,38 @@ mod tests {
                 #[automatically_derived]
                 #[cfg(test)]
                 mod proptest_foobar {
+                    extern crate std;
                     use super::*;
                     use ::derive_fuzztest::reexport::proptest;
                     use ::derive_fuzztest::reexport::proptest_arbitrary_interop::arb;
-                    proptest::proptest! {
-                        #![proptest_config(proptest::prelude::ProptestConfig {
+                    #[test]
+                    fn proptest_foobar() {
+                        let config = proptest::prelude::ProptestConfig {
                             cases: 1024,
-                            failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::WithSource("regression"))),
+                            max_global_rejects: 65536,
+                            failure_persistence: Some(
+                                std::boxed::Box::new(proptest::test_runner::FileFailurePersistence::WithSource("regression")),
+                            ),
+                            test_name: Some(
+                                concat!(std::module_path!(), "::", stringify!(proptest_foobar)),
+                            ),
+                            source_file: Some(file!()),
                             ..Default::default()
-                        })]
-                        #[test]
-                        fn proptest_foobar(args in arb::<(&[u8])>()) {
-                            let (input) = args;
-                            foobar(input);
+                        };
+                        let config = proptest::test_runner::contextualize_config(config);
+                        let mut runner = proptest::test_runner::TestRunner::new(config);
+                        match runner
+                            .run(
+                                &arb::<(&[u8])>(),
+                                |args| {
+                                    let (input) = args;
+                                    foobar(input);
+                                    proptest::test_runner::TestCaseResult::Ok(())
+                                },
+                            )
+                        {
+                            Ok(()) => {}
+                            Err(e) => panic!("{e:?}\n{runner:?}"),
                         }
                     }
                 }
@@ -382,19 +462,20 @@ mod tests {
                 #[automatically_derived]
                 #[test]
                 fn quickcheck_foobar() {
-                    use ::derive_fuzztest::reexport::quickcheck::TestResult;
+                    use ::derive_fuzztest::reexport::quickcheck::TestResult as QcTestResult;
                     use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
                     extern crate std;
 
-                    fn inner(args: (ArbitraryAdapter<&[u8]>)) -> TestResult {
+                    fn inner(args: (ArbitraryAdapter<&[u8]>)) -> QcTestResult {
                         let (ArbitraryAdapter(::core::result::Result::Ok(input))) = args else {
-                            return TestResult::discard()
+                            return QcTestResult::discard()
                         };
                         match std::panic::catch_unwind(move || {
                             foobar(input);
+                            QcTestResult::passed()
                         }) {
-                            ::core::result::Result::Ok(()) => TestResult::passed(),
-                            ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
+                            ::core::result::Result::Ok(test_result) => test_result,
+                            ::core::result::Result::Err(e) => QcTestResult::error(std::format!("{e:?}")),
                         }
                     }
                     ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
@@ -402,7 +483,7 @@ mod tests {
                             std::env::var("QUICKCHECK_TESTS").ok()
                                 .and_then(|val| val.parse().ok()).unwrap_or(10000)
                         )
-                        .quickcheck(inner as fn(_) -> TestResult);
+                        .quickcheck(inner as fn(_) -> QcTestResult);
                 }
             }
         );
@@ -429,9 +510,10 @@ mod tests {
                 extern crate std;
                 #[automatically_derived]
                 #[cfg(fuzzing)]
-                ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| {
+                ::libfuzzer_sys::fuzz_target!(|args: (&[u8])| -> ::libfuzzer_sys::Corpus {
                     let (input) = args;
-                    foobar(input)
+                    foobar(input);
+                    ::libfuzzer_sys::Corpus::Keep
                 });
 
                 #[cfg(not(any(fuzzing, rust_analyzer)))]
@@ -464,19 +546,20 @@ mod tests {
                 #[automatically_derived]
                 #[test]
                 fn quickcheck_foobar() {
-                    use ::derive_fuzztest::reexport::quickcheck::TestResult;
+                    use ::derive_fuzztest::reexport::quickcheck::TestResult as QcTestResult;
                     use ::derive_fuzztest::arbitrary_bridge::ArbitraryAdapter;
                     extern crate std;
 
-                    fn inner(args: (ArbitraryAdapter<&[u8]>)) -> TestResult {
+                    fn inner(args: (ArbitraryAdapter<&[u8]>)) -> QcTestResult {
                         let (ArbitraryAdapter(::core::result::Result::Ok(input))) = args else {
-                            return TestResult::discard()
+                            return QcTestResult::discard()
                         };
                         match std::panic::catch_unwind(move || {
                             foobar(input);
+                            QcTestResult::passed()
                         }) {
-                            ::core::result::Result::Ok(()) => TestResult::passed(),
-                            ::core::result::Result::Err(e) => TestResult::error(std::format!("{e:?}")),
+                            ::core::result::Result::Ok(test_result) => test_result,
+                            ::core::result::Result::Err(e) => QcTestResult::error(std::format!("{e:?}")),
                         }
                     }
                     ::derive_fuzztest::reexport::quickcheck::QuickCheck::new()
@@ -484,25 +567,46 @@ mod tests {
                             std::env::var("QUICKCHECK_TESTS").ok()
                                 .and_then(|val| val.parse().ok()).unwrap_or(10000)
                         )
-                        .quickcheck(inner as fn(_) -> TestResult);
+                        .quickcheck(inner as fn(_) -> QcTestResult);
                 }
 
                 #[automatically_derived]
                 #[cfg(test)]
                 mod proptest_foobar {
+                    extern crate std;
                     use super::*;
                     use ::derive_fuzztest::reexport::proptest;
                     use ::derive_fuzztest::reexport::proptest_arbitrary_interop::arb;
-                    proptest::proptest! {
-                        #![proptest_config(proptest::prelude::ProptestConfig {
+                    #[test]
+                    fn proptest_foobar() {
+                        let config = proptest::prelude::ProptestConfig {
                             cases: 1024,
-                            failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::WithSource("regression"))),
+                            max_global_rejects: 65536,
+                            failure_persistence: Some(
+                                std::boxed::Box::new(
+                                    proptest::test_runner::FileFailurePersistence::WithSource("regression"),
+                                ),
+                            ),
+                            test_name: Some(
+                                concat!(std::module_path!(), "::", stringify!(proptest_foobar)),
+                            ),
+                            source_file: Some(file!()),
                             ..Default::default()
-                        })]
-                        #[test]
-                        fn proptest_foobar(args in arb::<(&[u8])>()) {
-                            let (input) = args;
-                            foobar(input);
+                        };
+                        let config = proptest::test_runner::contextualize_config(config);
+                        let mut runner = proptest::test_runner::TestRunner::new(config);
+                        match runner
+                            .run(
+                                &arb::<(&[u8])>(),
+                                |args| {
+                                    let (input) = args;
+                                    foobar(input);
+                                    proptest::test_runner::TestCaseResult::Ok(())
+                                },
+                            )
+                        {
+                            Ok(()) => {}
+                            Err(e) => panic!("{e:?}\n{runner:?}"),
                         }
                     }
                 }

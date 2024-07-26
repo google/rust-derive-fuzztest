@@ -16,6 +16,9 @@ proptest = { workspace = true, optional = true }
 proptest-arbitrary-interop = { workspace = true, optional = true }
 quickcheck = { workspace = true, optional = true }
 
+[target.'cfg(fuzzing)'.dependencies]
+libfuzzer-sys.workspace = true
+
 [features]
 default = ["quickcheck"]
 quickcheck = ["dep:quickcheck", "derive_fuzztest_macro/quickcheck"]
@@ -28,3 +31,7 @@ all = ["quickcheck", "proptest"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+anyhow = "1.0.86"
+xshell = "0.2.6"

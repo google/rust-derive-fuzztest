@@ -1,4 +1,5 @@
 name: cargo build and test
+permissions: read-all
 
 on:
   push:
@@ -16,6 +17,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+    - uses: dtolnay/rust-toolchain@64dec968ae28eba8cb36254ca81ecc9d3249ffd4 # nightly, as of 2024-07-26
+      with:
+        toolchain: nightly
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz@0.12.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests

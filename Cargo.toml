@@ -15,6 +15,7 @@ unsafe_op_in_unsafe_fn = "deny"
 unused_extern_crates = "deny"
 unused_import_braces = "deny"
 unused_results = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
 
 [workspace.lints.clippy]
 expect_used = "deny"

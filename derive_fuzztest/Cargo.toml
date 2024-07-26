@@ -24,6 +24,7 @@ proptest = [
     "dep:proptest-arbitrary-interop",
     "derive_fuzztest_macro/proptest",
 ]
+all = ["quickcheck", "proptest"]
 
 [lints]
 workspace = true

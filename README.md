@@ -35,6 +35,33 @@ fn additional_test_here() {
 }
 ```
 
+# Result reporting
+
+Test functions report test failures by panicking, similar to how you would write a regular
+`#[test]`. If the annotated test function completes without panicking, the test is considered to
+have passed.
+
+In some cases, you may want to discard some inputs, treating them neither as passes nor failures,
+just continue onto testing another generated input. This can be done by returning a
+[`TestResult`](https://docs.rs/derive_fuzztest/latest/derive_fuzztest/enum.TestResult.html) from the
+annotated function. Property testing frameworks will try to generate more test cases to replace the
+discarded one, up to a certain limit. For fuzzing, test results that are discarded will not be added
+to the corpus.
+
+```rust
+use derive_fuzztest::TestResult;
+
+#[derive_fuzztest::fuzztest]
+fn increment(a: u8) -> TestResult {
+    if a < u8::MAX {
+        assert_eq!(a + 1 - 1, a);
+        TestResult::Passed
+    } else {
+        TestResult::Discard
+    }
+}
+ ```
+
 ## Usage
 
 Run the generated property tests

@@ -40,6 +40,32 @@
 //! }
 //! ```
 //!
+//! # Result reporting
+//!
+//! Test functions report test failures by panicking, similar to how you would write a regular
+//! `#[test]`. If the annotated test function completes without panicking, the test is considered to
+//! have passed.
+//!
+//! In some cases, you may want to discard some inputs, treating them neither as passes nor
+//! failures, just continue onto testing another generated input. This can be done by returning a
+//! [`TestResult`] from the annotated function. Property testing frameworks will try to generate
+//! more test cases to replace the discarded one, up to a certain limit. For fuzzing, test results
+//! that are discarded will not be added to the corpus.
+//!
+//! ```
+//! use derive_fuzztest::TestResult;
+//!
+//! #[derive_fuzztest::fuzztest]
+//! fn increment(a: u8) -> TestResult {
+//!     if a < u8::MAX {
+//!         assert_eq!(a + 1 - 1, a);
+//!         TestResult::Passed
+//!     } else {
+//!         TestResult::Discard
+//!     }
+//! }
+//! ```
+//!
 //! # Usage
 //!
 //!
@@ -116,6 +142,27 @@ pub mod reexport {
     pub use proptest_arbitrary_interop;
     #[cfg(feature = "quickcheck")]
     pub use quickcheck;
+}
+
+/// A test result reported from the test case.
+///
+/// A test case annotated with `#[fuzztest]`, `#[fuzz]`, or `#[proptest]` can optionally return a
+/// `TestResult` to indicate whether a test should be treated as discarded or passed.
+///
+/// If the test does not have a return value, all non-panicking test cases default to passed.
+pub enum TestResult {
+    /// Indicates that a test passed.
+    Passed,
+    /// Indicates that a test should be discarded.
+    ///
+    /// For property testing, discarding a test result will cause `quickcheck` or `proptest` to try
+    /// to generate more test cases to find non-discarded ones, up to a certain limit set by the
+    /// framework. This corresponds to [`quickcheck::TestResult::discard`] and
+    /// [`proptest::test_runner::TestCaseError::Reject`](https://docs.rs/proptest/latest/proptest/test_runner/enum.TestCaseError.html#variant.Reject).
+    ///
+    /// For fuzzing, a discarded result will not be added to the corpus, corresponding to
+    /// [`libfuzzer_sys::Corpus::Reject`](https://docs.rs/libfuzzer-sys/latest/libfuzzer_sys/enum.Corpus.html#variant.Reject).
+    Discard,
 }
 
 #[cfg(feature = "quickcheck")]

@@ -1,4 +1,5 @@
 name: cargo build and test
+permissions: read-all
 
 on:
   push:
@@ -16,6 +17,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+    - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+      with:
+        toolchain: nightly
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -27,6 +31,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+    - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+      with:
+        toolchain: nightly
     - name: Build
       run: cargo build --verbose
     - name: Run tests

@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 use xshell::cmd;
 
+// Windows fuzz runs currently fail with STATUS_DLL_NOT_FOUND
+#[cfg(not(target_family = "windows"))]
 #[test]
 fn run_fuzzers() -> anyhow::Result<()> {
     let sh = xshell::Shell::new()?;

@@ -165,6 +165,43 @@ pub enum TestResult {
     Discard,
 }
 
+impl From<()> for TestResult {
+    fn from(_: ()) -> Self {
+        TestResult::Passed
+    }
+}
+
+#[cfg(fuzzing)]
+impl From<TestResult> for ::libfuzzer_sys::Corpus {
+    fn from(test_result: TestResult) -> Self {
+        match test_result {
+            TestResult::Passed => Self::Keep,
+            TestResult::Discard => Self::Reject,
+        }
+    }
+}
+
+#[cfg(feature = "proptest")]
+impl From<TestResult> for proptest::test_runner::TestCaseResult {
+    fn from(value: TestResult) -> Self {
+        use proptest::{prelude::TestCaseError, test_runner::TestCaseResult};
+        match value {
+            TestResult::Passed => TestCaseResult::Ok(()),
+            TestResult::Discard => TestCaseResult::Err(TestCaseError::reject("Discarded by test case")),
+        }
+    }
+}
+
+#[cfg(feature = "quickcheck")]
+impl From<TestResult> for quickcheck::TestResult {
+    fn from(value: TestResult) -> Self {
+        match value {
+            TestResult::Passed => quickcheck::TestResult::passed(),
+            TestResult::Discard => quickcheck::TestResult::discard(),
+        }
+    }
+}
+
 #[cfg(feature = "quickcheck")]
 #[doc(hidden)]
 pub mod arbitrary_bridge {

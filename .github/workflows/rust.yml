@@ -20,6 +20,8 @@ jobs:
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
       with:
         toolchain: nightly
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz@0.12.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -34,6 +36,8 @@ jobs:
     - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
       with:
         toolchain: nightly
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz@0.12.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests

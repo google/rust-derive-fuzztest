@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "derive_fuzz_example"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "arbitrary",
  "derive_fuzztest",
@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "derive_fuzztest"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "derive_fuzztest_macro"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "pretty_assertions",
  "prettyplease",

@@ -15,19 +15,32 @@
 #![cfg_attr(fuzzing, no_main)]
 #![no_std]
 
+use arbitrary::Arbitrary;
 use derive_fuzztest::fuzztest;
+
+#[derive(Arbitrary, Clone, Debug)]
+struct UnitStruct;
+
+#[derive(Arbitrary, Clone, Debug)]
+struct TestStruct {
+    field1: u8,
+    field2: u8,
+}
+
+#[derive(Arbitrary, Clone, Debug)]
+enum Either {
+    A { a: u8 },
+    B { b: u8 },
+}
 
 /// Test case to make sure the code generation works for unusual patterns in the function
 /// parameters.
 #[fuzztest]
 fn test(
-    a: u8,
-    mut b: u8,
-    (ref c, mut d, _): (u8, u8, u8),
-    r#try: (),
-    0..: u8,
-    0..=255: u8,
-    (..): (),
-    (..): (u8, u8, u8),
+    UnitStruct: UnitStruct,
+    TestStruct { field1, mut field2 }: TestStruct,
+    (Either::A { a } | Either::B { b: a }): Either,
+    (a2 @ Either::A { a: _ } | a2 @ Either::B { .. }): Either,
+    [i1, i2, i3, ..]: [u8; 12],
 ) {
 }

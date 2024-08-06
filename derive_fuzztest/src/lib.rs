@@ -187,7 +187,9 @@ impl From<TestResult> for proptest::test_runner::TestCaseResult {
         use proptest::{prelude::TestCaseError, test_runner::TestCaseResult};
         match value {
             TestResult::Passed => TestCaseResult::Ok(()),
-            TestResult::Discard => TestCaseResult::Err(TestCaseError::reject("Discarded by test case")),
+            TestResult::Discard => {
+                TestCaseResult::Err(TestCaseError::reject("Discarded by test case"))
+            }
         }
     }
 }
@@ -205,12 +207,25 @@ impl From<TestResult> for quickcheck::TestResult {
 #[cfg(feature = "quickcheck")]
 #[doc(hidden)]
 pub mod arbitrary_bridge {
+    use std::fmt::{Debug, Formatter};
 
     /// Wrapper type that allows `arbitrary::Arbitrary` to be used as `quickcheck::Arbitrary`
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct ArbitraryAdapter<T: for<'a> arbitrary::Arbitrary<'a>>(
         pub Result<T, arbitrary::Error>,
     );
+
+    impl<T> Debug for ArbitraryAdapter<T>
+    where
+        T: for<'a> arbitrary::Arbitrary<'a> + Debug,
+    {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match &self.0 {
+                Ok(v) => v.fmt(f),
+                Err(e) => e.fmt(f),
+            }
+        }
+    }
 
     impl<T> quickcheck::Arbitrary for ArbitraryAdapter<T>
     where

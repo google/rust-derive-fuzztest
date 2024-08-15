@@ -35,3 +35,7 @@ workspace = true
 [dev-dependencies]
 anyhow = "1.0.86"
 xshell = "0.2.6"
+
+[package.metadata.docs.rs]
+# Generate docs for all features.
+all-features = true

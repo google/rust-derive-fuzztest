@@ -20,6 +20,7 @@ use derive_fuzztest::fuzztest;
 /// Test case to make sure the code generation works for unusual patterns in the function
 /// parameters.
 #[fuzztest]
+#[allow(clippy::too_many_arguments)]
 fn test(
     a: u8,
     mut b: u8,

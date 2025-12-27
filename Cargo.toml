@@ -29,20 +29,20 @@ derive_fuzztest = { version = "0.1.4", path = "derive_fuzztest" }
 derive_fuzztest_macro = { version = "0.1.4", path = "derive_fuzztest_macro" }
 
 # from crates.io
-arbitrary = "1.3.2"
-libfuzzer-sys = "0.4.7"
-pretty_assertions = "1.4.0"
-prettyplease = "0.2.16"
-proc-macro2 = "1.0"
-proptest = "1.4.0"
+arbitrary = "1.4.2"
+libfuzzer-sys = "0.4.10"
+pretty_assertions = "1.4.1"
+prettyplease = "0.2.37"
+proc-macro2 = "1.0.104"
+proptest = "1.9.0"
 proptest-arbitrary-interop = "0.1.0"
 quickcheck = "1.0.3"
-quote = "1.0"
-syn = { version = "2.0", features = ["full"] }
+quote = "1.0.42"
+syn = { version = "2.0.111", features = ["full"] }
 
 [workspace.package]
 version = "0.1.4"
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 publish = true
 categories = ["development-tools::testing"]
